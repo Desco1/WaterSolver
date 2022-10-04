@@ -1,0 +1,113 @@
+buildscript {
+    ext.kotlin_version = "1.6.10"
+
+    repositories {
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url = "https://jitpack.io" }
+        maven { url = "https://maven.minecraftforge.net/" }
+        maven { url = "https://repo.spongepowered.org/maven" }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.github.debuggingss:ForgeGradle:FG_2.1-SNAPSHOT"
+        classpath "com.github.jengelman.gradle.plugins:shadow:6.1.0"
+    }
+}
+
+apply plugin: "java"
+apply plugin: "kotlin"
+apply plugin: "net.minecraftforge.gradle.forge"
+apply plugin: "com.github.johnrengelman.shadow"
+
+group = "com.luna"
+archivesBaseName = "WaterSolver"
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+compileJava.options.encoding = "UTF-8"
+
+sourceSets {
+    main {
+        output.resourcesDir = java.outputDir
+    }
+}
+
+minecraft {
+    version = "1.8.9-11.15.1.2318-1.8.9"
+    runDir = "run"
+    mappings = "stable_22"
+    makeObfSourceJar = false
+
+    clientJvmArgs += "-Delementa.dev=true"
+    clientRunArgs += "--tweakClass gg.essential.loader.stage0.EssentialSetupTweaker"
+}
+
+configurations {
+    embed
+    implementation.extendsFrom(embed)
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://repo.sk1er.club/repository/maven-public/" }
+    maven { url = "https://repo.spongepowered.org/repository/maven-public/" }
+    maven { url = "https://jitpack.io/" }
+}
+
+dependencies {
+    embed "gg.essential:loader-launchwrapper:1.1.3"
+    compileOnly "gg.essential:essential-1.8.9-forge:1759"
+
+    annotationProcessor "com.google.code.gson:gson:2.2.4"
+    annotationProcessor "com.google.guava:guava:21.0"
+    annotationProcessor "org.ow2.asm:asm-tree:6.2"
+    annotationProcessor "org.ow2.asm:asm-util:6.2"
+    annotationProcessor "org.apache.logging.log4j:log4j-core:2.0-beta9"
+}
+
+shadowJar {
+    archiveName = tasks.jar.archiveName
+    classifier = ""
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest.attributes(
+            "ForceLoadAsMod": true,
+            "ModSide": "CLIENT",
+            "TweakClass": "gg.essential.loader.stage0.EssentialSetupTweaker"
+    )
+
+    exclude("dummyThing")
+    exclude("META-INF/maven/")
+    exclude("META-INF/nar/")
+    exclude("module-info.class")
+    exclude("META-INF/versions/")
+    exclude("LICENSE.txt")
+
+    configurations = [project.configurations.embed]
+}
+
+reobfJar.dependsOn tasks.shadowJar
+
+reobf {
+    shadowJar {
+        mappingType = "SEARGE"
+    }
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include "mcmod.info"
+        expand "version": project.version, "mcversion": project.minecraft.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude "mcmod.info"
+    }
+
+    from(file("LICENSE"))
+}
