@@ -170,12 +170,12 @@ object PuzzleHandler {
                     if (time == 0.0) {
                         EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                     } else {
-                        EnumChatFormatting.YELLOW.toString() + time + "s"
+                        EnumChatFormatting.YELLOW.toString() + "%.2f".format(time) + "s"
                     }
                 } else {
                     val remainingTime = openedWater + time * 1000L - System.currentTimeMillis()
                     if (remainingTime > 0) {
-                        EnumChatFormatting.YELLOW.toString() + (remainingTime / 1000).toString() + "s"
+                        EnumChatFormatting.YELLOW.toString() + "%.2f".format(remainingTime / 1000) + "s"
                     } else {
                         EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                     }
