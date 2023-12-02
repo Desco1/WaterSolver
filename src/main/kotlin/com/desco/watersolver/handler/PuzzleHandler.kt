@@ -189,7 +189,7 @@ object PuzzleHandler {
     fun onBlockInteract(event: PlayerInteractEvent) {
         if (event.action != PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) return
         if (solutions.isEmpty()) return
-        for (value in LeverBlock.values()) {
+        for (value in LeverBlock.entries) {
             if (value.leverPos == event.pos) {
                 value.i++
                 if (value == LeverBlock.WATER) {
@@ -212,7 +212,7 @@ object PuzzleHandler {
         ticks = 0
         solutions.clear()
         openedWater = -1L
-        LeverBlock.values().forEach { it.i = 0 }
+        LeverBlock.entries.forEach { it.i = 0 }
     }
 
     enum class WoolColor(var dyeColor: EnumDyeColor) {
