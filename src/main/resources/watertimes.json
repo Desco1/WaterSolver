@@ -644,21 +644,18 @@
         0.0
       ],
       "minecraft:water": [
-        2.0
+        0.0,
+        3.0
       ],
       "minecraft:emerald_block": [
         0.0
       ],
-      "minecraft:hardened_clay": [
-        0.0,
-        5.5
-      ],
       "minecraft:quartz_block": [
         0.0,
-        8.9
+        1.8
       ],
       "minecraft:coal_block": [
-        11.8
+        14.0
       ]
     },
     "123": {
