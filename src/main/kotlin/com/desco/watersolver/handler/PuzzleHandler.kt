@@ -170,24 +170,61 @@ object PuzzleHandler {
 
     @SubscribeEvent
     fun onWorldRender(event: RenderWorldLastEvent) {
-        for (solution in solutions) {
-            for (i in solution.key.i until solution.value.size) {
-                val time = solution.value[i]
-                val displayText = if (openedWater == -1L) {
-                    if (time == 0.0) {
-                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
+        val solution = solutions
+            .map { (block, times) -> block to times.drop(block.i) }
+            .filter { (_, times) -> times.isNotEmpty() }
+
+        var allPreDone = true
+        val orderedSolutions = mutableListOf<Pair<Double, LeverBlock>>()
+        for ((leverBlock, times) in solution) {
+            if (leverBlock != LeverBlock.WATER && openedWater == -1L && times[0] == 0.0) {
+                allPreDone = false
+            }
+            orderedSolutions.addAll(times.mapNotNull { if (it == 0.0) null else it to leverBlock })
+        }
+        orderedSolutions.sortBy { it.first }
+
+        for ((block, times) in solution) {
+            if (openedWater != -1L) {
+                val orderText = times.filter { it != 0.0 }
+                    .joinToString(", ", prefix = EnumChatFormatting.RESET.toString()) {
+                        val num = orderedSolutions.indexOfFirst { (time, _) -> time == it } + 1
+                        if (num == 1) {
+                            EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + num
+                        } else {
+                            EnumChatFormatting.YELLOW.toString() + num
+                        }
+                    }
+
+                Utils.drawLabel(
+                    Vec3(block.leverPos).addVector(0.5, if (block == LeverBlock.WATER) 2.0 else 0.0, 0.5),
+                    orderText,
+                    event.partialTicks
+                )
+            }
+
+            times.forEachIndexed { i, it ->
+                val time = if (openedWater == -1L) {
+                    it
+                } else {
+                    it - (System.currentTimeMillis() - openedWater) / 1000.0
+                }
+
+                val displayText = if (time <= 0.0) {
+                    if (block == LeverBlock.WATER && !allPreDone) {
+                        EnumChatFormatting.RED.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                     } else {
-                        EnumChatFormatting.YELLOW.toString() + "%.2f".format(time) + "s"
+                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                     }
                 } else {
-                    val remainingTime = openedWater + time * 1000L - System.currentTimeMillis()
-                    if (remainingTime > 0) {
-                        EnumChatFormatting.YELLOW.toString() + "%.2f".format(remainingTime / 1000) + "s"
-                    } else {
-                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
-                    }
+                    EnumChatFormatting.YELLOW.toString() + "%.2f".format(time) + "s"
                 }
-                Utils.drawLabel(Vec3(solution.key.leverPos).addVector(0.5, (i - solution.key.i) * 0.5 + 1.5, 0.5), displayText, event.partialTicks)
+
+                Utils.drawLabel(
+                    Vec3(block.leverPos).addVector(0.5, (i - block.i) * 0.5 + 1.5, 0.5),
+                    displayText,
+                    event.partialTicks
+                )
             }
         }
     }
