@@ -17,19 +17,15 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent
 import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.common.gameevent.TickEvent
+import java.awt.Color
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 
 object PuzzleHandler {
 
-    private var waterSolutions: JsonObject
-
-    init {
-        val isr = PuzzleHandler::class.java.getResourceAsStream("/watertimes.json")
-            ?.let { InputStreamReader(it, StandardCharsets.UTF_8) }
-        waterSolutions = JsonParser().parse(isr).asJsonObject
-    }
-
+    private val waterSolutions = JsonParser().parse(
+        PuzzleHandler::class.java.getResourceAsStream("/watertimes.json")?.reader()
+    ).asJsonObject
     private var chestPos: BlockPos? = null
     private var roomFacing: EnumFacing? = null
     private var prevInWaterRoom = false
@@ -170,62 +166,61 @@ object PuzzleHandler {
 
     @SubscribeEvent
     fun onWorldRender(event: RenderWorldLastEvent) {
+        if (Minecraft.getMinecraft().thePlayer.getDistanceSq(chestPos ?: return) > 25 * 25) return
         val solution = solutions
-            .map { (block, times) -> block to times.drop(block.i) }
-            .filter { (_, times) -> times.isNotEmpty() }
+            .flatMap { (lever, times) -> times.drop(lever.i).map { lever to it } }
+            .sortedBy { (lever, time) -> time + if (lever == LeverBlock.WATER) 0.01 else 0.0 }
 
-        var allPreDone = true
-        val orderedSolutions = mutableListOf<Pair<Double, LeverBlock>>()
-        for ((leverBlock, times) in solution) {
-            if (leverBlock != LeverBlock.WATER && openedWater == -1L && times[0] == 0.0) {
-                allPreDone = false
+        if (solution.isEmpty()) return
+
+        val (first) = solution
+
+        Utils.drawLine(
+            Minecraft.getMinecraft().thePlayer.getPositionEyes(event.partialTicks),
+            Vec3(first.first.leverPos).addVector(0.5, 0.5, 0.5),
+            Color.GREEN,
+            event.partialTicks
+        )
+
+        if (solution.size > 1) {
+            val second = solution[1]
+
+            if (first.first != second.first) {
+                Utils.drawLine(
+                    Vec3(first.first.leverPos).addVector(0.5, 0.5, 0.5),
+                    Vec3(second.first.leverPos).addVector(0.5, 0.5, 0.5),
+                    Color.YELLOW,
+                    event.partialTicks
+                )
             }
-            orderedSolutions.addAll(times.mapNotNull { if (it == 0.0) null else it to leverBlock })
         }
-        orderedSolutions.sortBy { it.first }
 
-        for ((block, times) in solution) {
-            if (openedWater != -1L) {
-                val orderText = times.filter { it != 0.0 }
-                    .joinToString(", ", prefix = EnumChatFormatting.RESET.toString()) {
-                        val num = orderedSolutions.indexOfFirst { (time, _) -> time == it } + 1
-                        if (num == 1) {
-                            EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + num
-                        } else {
-                            EnumChatFormatting.YELLOW.toString() + num
-                        }
-                    }
+        for ((i, sol) in solution.withIndex()) {
+            val (lever, time) = sol
 
-                Utils.drawLabel(
-                    Vec3(block.leverPos).addVector(0.5, if (block == LeverBlock.WATER) 2.0 else 0.0, 0.5),
-                    orderText,
-                    event.partialTicks
-                )
+            val actualTime = if (openedWater == -1L) {
+                time
+            } else {
+                time - (System.currentTimeMillis() - openedWater) / 1000.0
             }
 
-            times.forEachIndexed { i, it ->
-                val time = if (openedWater == -1L) {
-                    it
+            val displayText = if (actualTime <= 0.0) {
+                if (lever == LeverBlock.WATER && i != 0) {
+                    EnumChatFormatting.RED.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                 } else {
-                    it - (System.currentTimeMillis() - openedWater) / 1000.0
+                    EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                 }
-
-                val displayText = if (time <= 0.0) {
-                    if (block == LeverBlock.WATER && !allPreDone) {
-                        EnumChatFormatting.RED.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
-                    } else {
-                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
-                    }
-                } else {
-                    EnumChatFormatting.YELLOW.toString() + "%.2f".format(time) + "s"
-                }
-
-                Utils.drawLabel(
-                    Vec3(block.leverPos).addVector(0.5, (i - block.i) * 0.5 + 1.5, 0.5),
-                    displayText,
-                    event.partialTicks
-                )
+            } else {
+                EnumChatFormatting.YELLOW.toString() + "%.2f".format(actualTime) + "s"
             }
+
+            val j = solution.count { it.first == lever && it.second < time }
+
+            Utils.drawLabel(
+                Vec3(lever.leverPos).addVector(0.5, (j - lever.i) * 0.5 + 1.5, 0.5),
+                displayText,
+                event.partialTicks
+            )
         }
     }
 
@@ -259,12 +254,12 @@ object PuzzleHandler {
         LeverBlock.entries.forEach { it.i = 0 }
     }
 
-    enum class WoolColor(var dyeColor: EnumDyeColor) {
-        PURPLE(EnumDyeColor.PURPLE),
-        ORANGE(EnumDyeColor.ORANGE),
-        BLUE(EnumDyeColor.BLUE),
-        GREEN(EnumDyeColor.GREEN),
-        RED(EnumDyeColor.RED);
+    enum class WoolColor {
+        PURPLE,
+        ORANGE,
+        BLUE,
+        GREEN,
+        RED;
 
         val isExtended: Boolean
             get() = if (chestPos == null || roomFacing == null) false else Minecraft.getMinecraft().theWorld.getBlockState(
