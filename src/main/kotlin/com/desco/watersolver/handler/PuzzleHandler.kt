@@ -37,7 +37,7 @@ object PuzzleHandler {
     private var variant = -1
     private var extendedSlots = ""
     private var ticks = 0
-    private var solutions = mutableMapOf<LeverBlock, Array<Double>>()
+    private var solutions = mutableMapOf<LeverBlock, DoubleArray>()
     private var openedWater = -1L
     private var job: Job? = null
 
@@ -52,107 +52,114 @@ object PuzzleHandler {
                 job = WaterSolverMod.launch {
                     prevInWaterRoom = inWaterRoom
                     inWaterRoom = false
-                    if (BlockPos.getAllInBox(
-                            BlockPos(player.posX.toInt() - 13, 54, player.posZ.toInt() - 13),
-                            BlockPos(player.posX.toInt() + 13, 54, player.posZ.toInt() + 13)
-                        )
-                            .any { world.getBlockState(it).block == Blocks.sticky_piston }) {
-                        val xRange = player.posX.toInt() - 25..player.posX.toInt() + 25
-                        val zRange = player.posZ.toInt() - 25..player.posZ.toInt() + 25
-                        roomRotation@
-                        for (te in world.loadedTileEntityList) {
-                            if (te.pos.y == 56 && te is TileEntityChest && te.numPlayersUsing == 0 && te.pos.x in xRange && te.pos.z in zRange) {
-                                if (world.getBlockState(te.pos.down()).block == Blocks.stone && world.getBlockState(te.pos.up(2)).block == Blocks.stained_glass) {
-                                    for (horizontal in EnumFacing.HORIZONTALS) {
-                                        if (world.getBlockState(te.pos.offset(horizontal.opposite, 3).down(2)).block == Blocks.sticky_piston) {
-                                            if (world.getBlockState(te.pos.offset(horizontal, 2)).block == Blocks.stone) {
-                                                chestPos = te.pos
-                                                roomFacing = horizontal
-                                                break@roomRotation
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
 
-                        if (chestPos == null) return@launch
+                    val nearPiston = BlockPos.getAllInBox(
+                        BlockPos(player.posX.toInt() - 13, 54, player.posZ.toInt() - 13),
+                        BlockPos(player.posX.toInt() + 13, 54, player.posZ.toInt() + 13)
+                    ).any { world.getBlockState(it).block == Blocks.sticky_piston }
 
-                        BlockPos.getAllInBox(
-                            BlockPos(player.posX.toInt() - 25, 82, player.posZ.toInt() - 25),
-                            BlockPos(player.posX.toInt() + 25, 82, player.posZ.toInt() + 25)
-                        )
-                            .find { world.getBlockState(it).block == Blocks.piston_head }?.let {
-                                inWaterRoom = true
-                                if (!prevInWaterRoom) {
-                                    val blockList = BlockPos.getAllInBox(BlockPos(it.x + 1, 78, it.z + 1), BlockPos(it.x - 1, 77, it.z - 1))
-                                    var foundGold = false
-                                    var foundClay = false
-                                    var foundEmerald = false
-                                    var foundQuartz = false
-                                    var foundDiamond = false
-                                    for (blockPos in blockList) {
-                                        when (world.getBlockState(blockPos).block) {
-                                            Blocks.gold_block -> foundGold = true
-                                            Blocks.hardened_clay -> foundClay = true
-                                            Blocks.emerald_block -> foundEmerald = true
-                                            Blocks.quartz_block -> foundQuartz = true
-                                            Blocks.diamond_block -> foundDiamond = true
-                                        }
-                                    }
-                                    if (foundGold && foundClay) {
-                                        variant = 0
-                                    } else if (foundEmerald && foundQuartz) {
-                                        variant = 1
-                                    } else if (foundQuartz && foundDiamond) {
-                                        variant = 2
-                                    } else if (foundGold && foundQuartz) {
-                                        variant = 3
-                                    }
-                                    for (value in WoolColor.values()) {
-                                        if (value.isExtended) {
-                                            extendedSlots += value.ordinal.toString()
-                                        }
-                                    }
-
-                                    if (extendedSlots.length != 3) {
-                                        println("Didn't find the solution! Retrying")
-                                        println("Slots: $extendedSlots")
-                                        println("Water: $inWaterRoom ($prevInWaterRoom)")
-                                        println("Chest: $chestPos")
-                                        println("Rotation: $roomFacing")
-                                        extendedSlots = ""
-                                        inWaterRoom = false
-                                        prevInWaterRoom = false
-                                        variant = -1
-                                        return@launch
-                                    }
-
-                                    Minecraft.getMinecraft().thePlayer.addChatMessage(
-                                        ChatComponentText(
-                                            EnumChatFormatting.AQUA.toString() + "[WS] " + EnumChatFormatting.RESET.toString() + "Variant: $variant:$extendedSlots:${roomFacing?.name}")
-                                    )
-
-                                    solutions.clear()
-                                    val solutionObj = waterSolutions[variant.toString()].asJsonObject[extendedSlots].asJsonObject
-                                    for (mutableEntry in solutionObj.entrySet()) {
-                                        val lever = when (mutableEntry.key) {
-                                            "minecraft:quartz_block" -> LeverBlock.QUARTZ
-                                            "minecraft:gold_block" -> LeverBlock.GOLD
-                                            "minecraft:coal_block" -> LeverBlock.COAL
-                                            "minecraft:diamond_block" -> LeverBlock.DIAMOND
-                                            "minecraft:emerald_block" -> LeverBlock.EMERALD
-                                            "minecraft:hardened_clay" -> LeverBlock.CLAY
-                                            "minecraft:water" -> LeverBlock.WATER
-                                            else -> LeverBlock.NONE
-                                        }
-                                        solutions[lever] = mutableEntry.value.asJsonArray.map { it.asDouble }.toTypedArray()
-                                    }
-                                }
-                            }
-                    } else {
+                    if (!nearPiston) {
                         solutions.clear()
                         variant = -1
+                        return@launch
+                    }
+
+                    val xRange = player.posX.toInt() - 25..player.posX.toInt() + 25
+                    val zRange = player.posZ.toInt() - 25..player.posZ.toInt() + 25
+                    world.loadedTileEntityList.find {
+                        it is TileEntityChest && it.pos.y == 56 && it.numPlayersUsing == 0 &&
+                                it.pos.x in xRange && it.pos.z in zRange &&
+                                world.getBlockState(it.pos.down()).block == Blocks.stone &&
+                                world.getBlockState(it.pos.up(2)).block == Blocks.stained_glass
+                    }?.let {
+                        for (horizontal in EnumFacing.HORIZONTALS) {
+                            val opposite = world.getBlockState(it.pos.offset(horizontal.opposite, 3).down(2)).block
+                            val facing = world.getBlockState(it.pos.offset(horizontal, 2)).block
+                            if (opposite == Blocks.sticky_piston && facing == Blocks.stone) {
+                                chestPos = it.pos
+                                roomFacing = horizontal
+                                break
+                            }
+                        }
+                    }
+
+                    if (chestPos == null) return@launch
+
+                    val piston = BlockPos.getAllInBox(
+                        BlockPos(player.posX.toInt() - 25, 82, player.posZ.toInt() - 25),
+                        BlockPos(player.posX.toInt() + 25, 82, player.posZ.toInt() + 25)
+                    ).find { world.getBlockState(it).block == Blocks.piston_head } ?: return@launch
+
+                    inWaterRoom = true
+                    if (prevInWaterRoom) return@launch
+
+                    val blockList = BlockPos.getAllInBox(
+                        BlockPos(piston.x + 1, 78, piston.z + 1),
+                        BlockPos(piston.x - 1, 77, piston.z - 1)
+                    )
+
+                    var foundGold = false
+                    var foundClay = false
+                    var foundEmerald = false
+                    var foundQuartz = false
+                    var foundDiamond = false
+                    for (blockPos in blockList) {
+                        when (world.getBlockState(blockPos).block) {
+                            Blocks.gold_block -> foundGold = true
+                            Blocks.hardened_clay -> foundClay = true
+                            Blocks.emerald_block -> foundEmerald = true
+                            Blocks.quartz_block -> foundQuartz = true
+                            Blocks.diamond_block -> foundDiamond = true
+                        }
+                    }
+
+                    variant = when {
+                        foundGold && foundClay -> 0
+                        foundEmerald && foundQuartz -> 1
+                        foundQuartz && foundDiamond -> 2
+                        foundGold && foundQuartz -> 3
+                        else -> -1
+                    }
+
+                    for (value in WoolColor.entries) {
+                        if (value.isExtended) {
+                            extendedSlots += value.ordinal.toString()
+                        }
+                    }
+
+                    if (extendedSlots.length != 3) {
+                        println("Didn't find the solution! Retrying")
+                        println("Slots: $extendedSlots")
+                        println("Water: $inWaterRoom ($prevInWaterRoom)")
+                        println("Chest: $chestPos")
+                        println("Rotation: $roomFacing")
+                        extendedSlots = ""
+                        inWaterRoom = false
+                        prevInWaterRoom = false
+                        variant = -1
+                        return@launch
+                    }
+
+                    player.addChatMessage(
+                        ChatComponentText(
+                            EnumChatFormatting.AQUA.toString() + "[WS] " + EnumChatFormatting.RESET.toString() + "Variant: $variant:$extendedSlots:${roomFacing?.name}"
+                        )
+                    )
+
+                    solutions.clear()
+                    val solutionObj = waterSolutions[variant.toString()].asJsonObject[extendedSlots].asJsonObject
+                    for ((block, times) in solutionObj.entrySet()) {
+                        val lever = when (block) {
+                            "minecraft:quartz_block" -> LeverBlock.QUARTZ
+                            "minecraft:gold_block" -> LeverBlock.GOLD
+                            "minecraft:coal_block" -> LeverBlock.COAL
+                            "minecraft:diamond_block" -> LeverBlock.DIAMOND
+                            "minecraft:emerald_block" -> LeverBlock.EMERALD
+                            "minecraft:hardened_clay" -> LeverBlock.CLAY
+                            "minecraft:water" -> LeverBlock.WATER
+                            else -> LeverBlock.NONE
+                        }
+                        solutions[lever] = times.asJsonArray.map { it.asDouble }.toDoubleArray()
                     }
                 }
             }
@@ -163,24 +170,61 @@ object PuzzleHandler {
 
     @SubscribeEvent
     fun onWorldRender(event: RenderWorldLastEvent) {
-        for (solution in solutions) {
-            for (i in solution.key.i until solution.value.size) {
-                val time = solution.value[i]
-                val displayText = if (openedWater == -1L) {
-                    if (time == 0.0) {
-                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
+        val solution = solutions
+            .map { (block, times) -> block to times.drop(block.i) }
+            .filter { (_, times) -> times.isNotEmpty() }
+
+        var allPreDone = true
+        val orderedSolutions = mutableListOf<Pair<Double, LeverBlock>>()
+        for ((leverBlock, times) in solution) {
+            if (leverBlock != LeverBlock.WATER && openedWater == -1L && times[0] == 0.0) {
+                allPreDone = false
+            }
+            orderedSolutions.addAll(times.mapNotNull { if (it == 0.0) null else it to leverBlock })
+        }
+        orderedSolutions.sortBy { it.first }
+
+        for ((block, times) in solution) {
+            if (openedWater != -1L) {
+                val orderText = times.filter { it != 0.0 }
+                    .joinToString(", ", prefix = EnumChatFormatting.RESET.toString()) {
+                        val num = orderedSolutions.indexOfFirst { (time, _) -> time == it } + 1
+                        if (num == 1) {
+                            EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + num
+                        } else {
+                            EnumChatFormatting.YELLOW.toString() + num
+                        }
+                    }
+
+                Utils.drawLabel(
+                    Vec3(block.leverPos).addVector(0.5, if (block == LeverBlock.WATER) 2.0 else 0.0, 0.5),
+                    orderText,
+                    event.partialTicks
+                )
+            }
+
+            times.forEachIndexed { i, it ->
+                val time = if (openedWater == -1L) {
+                    it
+                } else {
+                    it - (System.currentTimeMillis() - openedWater) / 1000.0
+                }
+
+                val displayText = if (time <= 0.0) {
+                    if (block == LeverBlock.WATER && !allPreDone) {
+                        EnumChatFormatting.RED.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                     } else {
-                        EnumChatFormatting.YELLOW.toString() + time + "s"
+                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
                     }
                 } else {
-                    val remainingTime = openedWater + time * 1000L - System.currentTimeMillis()
-                    if (remainingTime > 0) {
-                        EnumChatFormatting.YELLOW.toString() + (remainingTime / 1000).toString() + "s"
-                    } else {
-                        EnumChatFormatting.GREEN.toString() + EnumChatFormatting.BOLD.toString() + "CLICK ME!"
-                    }
+                    EnumChatFormatting.YELLOW.toString() + "%.2f".format(time) + "s"
                 }
-                Utils.drawLabel(Vec3(solution.key.leverPos).addVector(0.5, (i - solution.key.i) * 0.5 + 1.5, 0.5), displayText, event.partialTicks)
+
+                Utils.drawLabel(
+                    Vec3(block.leverPos).addVector(0.5, (i - block.i) * 0.5 + 1.5, 0.5),
+                    displayText,
+                    event.partialTicks
+                )
             }
         }
     }
@@ -189,7 +233,7 @@ object PuzzleHandler {
     fun onBlockInteract(event: PlayerInteractEvent) {
         if (event.action != PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK) return
         if (solutions.isEmpty()) return
-        for (value in LeverBlock.values()) {
+        for (value in LeverBlock.entries) {
             if (value.leverPos == event.pos) {
                 value.i++
                 if (value == LeverBlock.WATER) {
@@ -212,7 +256,7 @@ object PuzzleHandler {
         ticks = 0
         solutions.clear()
         openedWater = -1L
-        LeverBlock.values().forEach { it.i = 0 }
+        LeverBlock.entries.forEach { it.i = 0 }
     }
 
     enum class WoolColor(var dyeColor: EnumDyeColor) {

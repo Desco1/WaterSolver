@@ -13,5 +13,6 @@ It, sadly, requires Essential.
 - [DSM](https://github.com/bowser0000/SkyblockMod/) for most of the code of room detection.
 - [Skytils](https://github.com/Skytils/SkytilsMod/) for the rendering and part of the actual solver.
 - derek1984 for the actual solutions and Jade for bringing them to my attention.\
+- bonsai for fixing and updating several solutions
 
 If you are using this mod as reference to make your own solver, credit this page, the other code and people that made this possible.
