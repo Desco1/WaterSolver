@@ -175,8 +175,13 @@ object PuzzleHandler {
 
         val (first) = solution
 
+        val player = Minecraft.getMinecraft().renderViewEntity
+        val posX = player.lastTickPosX + (player.posX - player.lastTickPosX) * event.partialTicks
+        val posY = player.lastTickPosY + (player.posY - player.lastTickPosY) * event.partialTicks
+        val posZ = player.lastTickPosZ + (player.posZ - player.lastTickPosZ) * event.partialTicks
+
         Utils.drawLine(
-            Minecraft.getMinecraft().thePlayer.getPositionEyes(event.partialTicks),
+            Vec3(posX, posY, posZ),
             Vec3(first.first.leverPos).addVector(0.5, 0.5, 0.5),
             Color.GREEN,
             event.partialTicks
