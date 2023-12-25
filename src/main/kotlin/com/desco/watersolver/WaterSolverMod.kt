@@ -22,7 +22,7 @@ import kotlin.coroutines.CoroutineContext
 object WaterSolverMod: CoroutineScope {
     const val NAME = "SomeWaterSolver"
     const val MODID = "somewatersolver"
-    const val VERSION = "1.0"
+    const val VERSION = "1.1"
 
     override val coroutineContext: CoroutineContext = Executors.newFixedThreadPool(10).asCoroutineDispatcher() + SupervisorJob()
 
