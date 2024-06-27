@@ -1,15 +1,13 @@
-package com.desco.watersolver.handler
+package dev.desco.watersolver.handler
 
-import com.desco.watersolver.WaterSolverMod
-import com.desco.watersolver.utils.LocUtil
-import com.desco.watersolver.utils.Utils
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import dev.desco.watersolver.WaterSolverMod
+import dev.desco.watersolver.utils.LocUtil
+import dev.desco.watersolver.utils.Utils
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.init.Blocks
-import net.minecraft.item.EnumDyeColor
 import net.minecraft.tileentity.TileEntityChest
 import net.minecraft.util.*
 import net.minecraftforge.client.event.RenderWorldLastEvent
@@ -18,8 +16,6 @@ import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.common.gameevent.TickEvent
 import java.awt.Color
-import java.io.InputStreamReader
-import java.nio.charset.StandardCharsets
 
 object PuzzleHandler {
 

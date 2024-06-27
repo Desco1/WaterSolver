@@ -1,4 +1,4 @@
-package com.desco.watersolver.utils
+package dev.desco.watersolver.utils
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.GlStateManager
