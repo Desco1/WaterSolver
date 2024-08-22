@@ -41,7 +41,7 @@ minecraft {
     makeObfSourceJar = false
 
     clientJvmArgs += "-Delementa.dev=true"
-    clientRunArgs += "--tweakClass gg.essential.loader.stage0.EssentialSetupTweaker"
+    clientRunArgs += "--tweakClass dev.desco.watersolver.core.WaterTweaker"
 }
 
 configurations {
@@ -59,8 +59,10 @@ repositories {
 
 dependencies {
     embed "gg.essential:loader-launchwrapper:1.1.3"
-    embed(implementation("net.hypixel:mod-api:0.5.0"))
     compileOnly "gg.essential:essential-1.8.9-forge:1759"
+
+    implementation("net.hypixel:mod-api-forge:1.0.1.1")
+    embed("net.hypixel:mod-api-forge-tweaker:1.0.1.1")
 
     annotationProcessor "com.google.code.gson:gson:2.2.4"
     annotationProcessor "com.google.guava:guava:21.0"
@@ -74,12 +76,12 @@ shadowJar {
     classifier = ""
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-    relocate("net.hypixel", "dev.desco.mod-api")
+    relocate("net.hypixel.modapi.tweaker", "dev.desco.mod-api")
 
     manifest.attributes(
             "ForceLoadAsMod": true,
             "ModSide": "CLIENT",
-            "TweakClass": "gg.essential.loader.stage0.EssentialSetupTweaker"
+            "TweakClass": "dev.desco.watersolver.core.WaterTweaker"
     )
 
     exclude("dummyThing")
